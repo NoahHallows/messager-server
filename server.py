@@ -2,7 +2,7 @@ import socket
 import psycopg2
 import threading
 
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = 28752
 clients = {}
 
