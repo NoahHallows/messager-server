@@ -5,31 +5,54 @@ import threading
 HOST = "0.0.0.0"
 PORT = 28752
 clients = {}
+clients_lock = threading.Lock()
+logins = {"Noah": {'password': "$2b$12$Dhd2UJY4dktY4gfQ.3cQG.L1gxBPdbvcCatTibDimYLDq2HkId5ni", 'salt':"$2b$12$Dhd2UJY4dktY4gfQ.3cQG."}, "dad": {'password': "$2b$12$gFMcOWz0uGijshZNO5TZvewUIOJ8HahWG63bJmLqW7kDk.PNDMbGK", 'salt':"$2b$12$gFMcOWz0uGijshZNO5TZve"}}
 
 def on_new_client(conn, addr):
      with conn:
         print(f"Connected by {addr}")
-        username = conn.recv(1024).decode().strip()
-        clients[username] = (conn, addr)
         while True:
-            data = conn.recv(1024)
-            if not data:
-                print(f"Client '{username}' at {addr} disconnected.")
+            username_sent = conn.recv(1024).decode().strip()
+            if username_sent in logins:
+                print(f"Username {username_sent} found")
+                username = username_sent
+                conn.sendall(logins[username]['salt'].encode())
+                password_hashed = conn.recv(1042).decode().strip()
+                if password_hashed == logins[username]['password']:
+                    conn.sendall(b'1')
+                    break
+                else:
+                    conn.sendall(b'0')
+                    continue
+            if username_sent == "\0":
                 break
-            message = data.decode().strip()
-            print(f"Data from {username}: {message}")
-            broadcast_message = f"{username}: {message}"
-            for target_username, (target_conn, _) in clients.items():
-                if target_conn != conn:
-                    try:
-                        target_conn.sendall(broadcast_message.encode())
-                    except:
-                        print(f"Failed to send message to {target_username}")
-         # Cleanup on disconnect
-        del clients[username]
+            else:
+                conn.sendall(str(False).encode())
+                continue
+        with clients_lock:
+            clients[username] = (conn, addr)
+        client_run(conn, addr, username)
+        # Cleanup on disconnect
+        with clients_lock:
+            del clients[username]
         print(f"Removed client {username} ({addr}) from clients list.")
 
-
+def client_run(conn, addr, username):
+    while True:
+        data = conn.recv(1024)
+        if not data:
+            print(f"Client '{username}' at {addr} disconnected.")
+            break
+        message = data.decode().strip()
+        print(f"Data from {username}: {message}")
+        broadcast_message = f"{username}: {message}"
+        for target_username, (target_conn, _) in clients.copy().items():
+            if target_conn != conn:
+                try:
+                    target_conn.sendall(broadcast_message.encode())
+                except:
+                    print(f"Failed to send message to {target_username}")
+ 
 
 
 def main():
@@ -43,5 +66,5 @@ def main():
             thread.start()
         except:
             s.close()
-   
-main()
+if __name__ == "__main__":   
+    main()
