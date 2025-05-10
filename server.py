@@ -24,17 +24,17 @@ except Exception as e:
     print("Error connecting to SQL Server.")
     print(e)
 
-#logins = {"Noah": {'password': "$2b$12$Dhd2UJY4dktY4gfQ.3cQG.L1gxBPdbvcCatTibDimYLDq2HkId5ni", 'salt':"$2b$12$Dhd2UJY4dktY4gfQ.3cQG."}, "dad": {'password': "$2b$12$gFMcOWz0uGijshZNO5TZvewUIOJ8HahWG63bJmLqW7kDk.PNDMbGK", 'salt':"$2b$12$gFMcOWz0uGijshZNO5TZve"}}
 
 def on_new_client(conn, addr):
      with conn:
         print(f"Connected by {addr}")
         # Recive inital instuction (create user or login)
         data = conn.recv(1024).decode().strip()
+        username_sent = conn.recv(1024).decode().strip()
         if data == 'newaccount':
-            username = create_user(conn, addr)
+            username = create_user(conn, addr, username_sent)
         else:
-            username = login(conn, addr)
+            username = login(conn, addr, useranme_sent)
         print("FIGsaf")
         # Add to clients list
         with clients_lock:
@@ -46,9 +46,8 @@ def on_new_client(conn, addr):
             del clients[username]
         print(f"Removed client {username} ({addr}) from clients list.")
 
-def login(conn, addr):
+def login(conn, addr, username_sent):
      while True:
-        username_sent = conn.recv(1024).decode().strip()
         SQL_STATEMENT = "SELECT 1 FROM USERS WHERE username = ?;"
         cursor.execute(SQL_STATEMENT, username_sent)
         row = cursor.fetchone()
@@ -77,9 +76,8 @@ def login(conn, addr):
             conn.sendall(str(False).encode())
             continue
 
-def create_user(conn, addr):
+def create_user(conn, addr, username_sent):
     while True:
-        username_sent = conn.recv(1024).decode().strip()
         SQL_STATEMENT = "SELECT 1 FROM USERS WHERE username = ?;"
         username_exist = cursor.execute(SQL_STATEMENT, username_sent)
         if username_exist != 1:
