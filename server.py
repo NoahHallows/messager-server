@@ -7,14 +7,14 @@ PORT = 28752
 clients = {}
 clients_lock = threading.Lock()
 
-server = 'tcp:quackmsg.database.windows.net,1433'
-database = 'messagedb'
-username = 'noah'
-password = '9aie7Hgslc*9Wp'
+SERVER = 'tcp:quackmsg.database.windows.net,1433'
+DATABASE = 'messagedb'
+USERNAME = 'noah'
+PASSWORD = '9aie7Hgslc*9Wp'
 connectionString = f'DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}'
 
 try:
-    db = pyodbc.connect(connectionStringimport)
+    db = pyodbc.connect(connectionString)
     print("Connection successful!")
 except Exception as e:
     print("Error connecting to SQL Server.")
