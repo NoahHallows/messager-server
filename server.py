@@ -5,8 +5,8 @@ import bcrypt
 import time
 
 HOST = "0.0.0.0"
-PORT = 23456
-#PORT = 28752
+#PORT = 23456
+PORT = 28752
 clients = {}
 clients_lock = threading.Lock()
 
@@ -52,30 +52,24 @@ def login(conn, addr):
         SQL_STATEMENT = "SELECT 1 FROM USERS WHERE username = ?;"
         cursor.execute(SQL_STATEMENT, username_sent)
         row = cursor.fetchone()
-        print(f"row == {row}")
         if row:
-            print(f"Username {username_sent} found")
             username = username_sent
             SQL_STATEMENT = "SELECT password_hashed FROM USERS WHERE username = ?;"
             cursor.execute(SQL_STATEMENT, username)
             row = cursor.fetchone()
             salt = row[0]
             salt = salt.encode()
-            print(f"salt is == {salt}")
             conn.sendall(salt)
             password_to_check = conn.recv(1042).decode().strip()
             SQL_STATEMENT = "SELECT password_hashed FROM USERS WHERE Username = ?;"
             cursor.execute(SQL_STATEMENT, username)
             row = cursor.fetchone()
             hashed_password = row[0]
-            print(f"Hashed passwd from db is {hashed_password}")
             if password_to_check.encode() == hashed_password.encode():
                 conn.sendall(b'1')
-                print("Passwords matched")
                 return username
             else:
                 conn.sendall(b'0')
-                print("Passwords do not match")
                 continue
         if username_sent == "\0":
             exit()
@@ -84,26 +78,20 @@ def login(conn, addr):
             continue
 
 def create_user(conn, addr):
-    print("Creating account")
     while True:
         username_sent = conn.recv(1024).decode().strip()
-        print(f"Username is: {username_sent}")
         SQL_STATEMENT = "SELECT 1 FROM USERS WHERE username = ?;"
         username_exist = cursor.execute(SQL_STATEMENT, username_sent)
         if username_exist != 1:
-            print("Username not found")
             conn.sendall(b'0')
             password_hashed = conn.recv(1024).strip()
             salt = conn.recv(62).strip()
-            print(f"Password is {password_hashed}, and salt is {salt}")
             SQL_STATEMENT = "INSERT INTO USERS (username, password_hashed, salt) VALUES (?, ?, ?)"
             cursor.execute(SQL_STATEMENT, username_sent, password_hashed, salt)
             db.commit()
             conn.sendall(b'1')
-            print("Finished")
             return username_sent
         else:
-            print("Username was found")
             continue
 
 
@@ -116,9 +104,8 @@ def client_run(conn, addr, username):
             print(f"Client '{username}' at {addr} disconnected.")
             break
         message = data.decode().strip()
-        cursor.execute("INSERT INTO MESSAGES (sender, reciver, message, time_send) VALUES (?, ?, ?)", username, "all", message, time.time())
+        cursor.execute("INSERT INTO MESSAGES (sender, reciver, message) VALUES (?, ?, ?)", username, "all", message)
         db.commit()
-        print(f"Data from {username}: {message}")
         broadcast_message = f"{username}: {message}"
         for target_username, (target_conn, _) in clients.copy().items():
             if target_conn != conn:
@@ -135,12 +122,10 @@ def main():
     while True:
         s.listen()
         try:
-            print("trying to connect")
             conn, addr = s.accept()
             thread = threading.Thread(target=on_new_client, args=(conn,addr, ))
             thread.start()
         except:
-            print("Connection failed")
             s.close()
         if input() == ":q":
             cursor.close()
