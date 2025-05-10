@@ -2,7 +2,6 @@ import socket
 import pyodbc
 import threading
 import bcrypt
-import time
 
 HOST = "0.0.0.0"
 PORT = 23456
@@ -69,7 +68,7 @@ def login(conn, addr):
             row = cursor.fetchone()
             hashed_password = row[0]
             print(f"Hashed passwd from db is {hashed_password}")
-            if password_to_check.encode() == hashed_password.encode():
+            if bcrypt.checkpw(password_to_check.encode(), hashed_password.encode()):
                 conn.sendall(b'1')
                 print("Passwords matched")
                 return username
@@ -96,7 +95,7 @@ def create_user(conn, addr):
             password_hashed = conn.recv(1024).strip()
             salt = conn.recv(62).strip()
             print(f"Password is {password_hashed}, and salt is {salt}")
-            SQL_STATEMENT = "INSERT INTO USERS (username, password_hashed, salt) VALUES (?, ?, ?)"
+            SQL_STATEMENT = "INSERT INTO USERS (username, pa`ssword_hashed, salt) VALUES (?, ?, ?)"
             cursor.execute(SQL_STATEMENT, username_sent, password_hashed, salt)
             db.commit()
             conn.sendall(b'1')
@@ -116,8 +115,6 @@ def client_run(conn, addr, username):
             print(f"Client '{username}' at {addr} disconnected.")
             break
         message = data.decode().strip()
-        cursor.execute("INSERT INTO MESSAGES (sender, reciver, message, time_send) VALUES (?, ?, ?)", username, "all", message, time.time())
-        db.commit()
         print(f"Data from {username}: {message}")
         broadcast_message = f"{username}: {message}"
         for target_username, (target_conn, _) in clients.copy().items():
