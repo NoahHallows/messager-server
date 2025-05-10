@@ -20,7 +20,7 @@ except Exception as e:
     print("Error connecting to SQL Server.")
     print(e)
 
-logins = {"Noah": {'password': "$2b$12$Dhd2UJY4dktY4gfQ.3cQG.L1gxBPdbvcCatTibDimYLDq2HkId5ni", 'salt':"$2b$12$Dhd2UJY4dktY4gfQ.3cQG."}, "dad": {'password': "$2b$12$gFMcOWz0uGijshZNO5TZvewUIOJ8HahWG63bJmLqW7kDk.PNDMbGK", 'salt':"$2b$12$gFMcOWz0uGijshZNO5TZve"}}
+#logins = {"Noah": {'password': "$2b$12$Dhd2UJY4dktY4gfQ.3cQG.L1gxBPdbvcCatTibDimYLDq2HkId5ni", 'salt':"$2b$12$Dhd2UJY4dktY4gfQ.3cQG."}, "dad": {'password': "$2b$12$gFMcOWz0uGijshZNO5TZvewUIOJ8HahWG63bJmLqW7kDk.PNDMbGK", 'salt':"$2b$12$gFMcOWz0uGijshZNO5TZve"}}
 
 def on_new_client(conn, addr):
      with conn:
@@ -44,12 +44,19 @@ def on_new_client(conn, addr):
 def login(conn, addr):
      while True:
         username_sent = conn.recv(1024).decode().strip()
-        if username_sent in logins:
+        SQL_STATEMENT = "SELECT 1 FROM USERS WHERE username = ?;"
+        username_exist = cursor.execute(SQL_STATEMENT, username_sent)
+
+        if username_exist == 1:
             print(f"Username {username_sent} found")
             username = username_sent
+            SQL_STATEMENT = "SELECT Password FROM USERS WHERE username = ?;"
+            salt = cursor.execute(SQL_STATEMENT, username)
             conn.sendall(logins[username]['salt'].encode())
-            password_hashed = conn.recv(1042).decode().strip()
-            if password_hashed == logins[username]['password']:
+            password_to_check = conn.recv(1042).decode().strip()
+            SQL_STATEMENT = "SELECT Password FROM Users WHERE Username = ?;"
+            hashed_password = cursor.execute(SQL_STATEMENT, username)
+            if bcrypt.checkpw(password_to_check, hashed_password):
                 conn.sendall(b'1')
                 break
             else:
@@ -64,11 +71,14 @@ def login(conn, addr):
 def create_user(conn, addr):
     while True:
         username_sent = conn.recv(1024).decode().strip()
-        if username not in logins:
+        SQL_STATEMENT = "SELECT 1 FROM USERS WHERE username = ?;"
+        username_exist = cursor.execute(SQL_STATEMENT, username_sent)
+        if username_exist != 1:
             conn.sendall(b'0')
             password_hashed = conn.recv(1024).decode().strip()
-            salt = conn.recv(1024).decode().strip()
-            logins[username] = {'password': password_hashed, 'salt': salt}
+            salt = conn.recv(16).strip()
+            SQL_STATEMENT = "INSERT INTO USERS (?, ?, ?)"
+            cursor.execute(SQL_STATEMENT, username, password_hashed, salt)
             conn.sendall(b'1')
 
 
