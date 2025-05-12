@@ -15,11 +15,11 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN curl -sSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb && \
-sudo dpkg -i packages-microsoft-prod.deb &&\
+dpkg -i packages-microsoft-prod.deb &&\
 rm packages-microsoft-prod.deb
-RUN sudo apt-get update && \
-sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
-sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18
+RUN apt-get update && \
+ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
+ACCEPT_EULA=Y apt-get install -y mssql-tools18
 RUN echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
 
 
