@@ -1,4 +1,4 @@
-FROM python
+FROM python:3.14.0b1-bookworm
 
 
 # Set the working directory in the container
@@ -14,7 +14,16 @@ RUN apt-get update \
       unixodbc-dev \
  && rm -rf /var/lib/apt/lists/*
 
-RUN curl -sSL -O https://packages.microsoft.com/config/ubuntu/$(grep VERSION_ID /etc/os-release | cut -d '"' -f 2)/packages-microsoft-prod.deb && sudo dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb && sudo apt-get update && sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 && sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 && echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
+RUN curl -sSL -O https://packages.microsioft.com/config/debian/$(grep VERSION_ID /etc/os-release | cut -d '"' -f 2 | cut -d '.' -f 1)/packages-microsoft-prod.deb && \
+sudo dpkg -i packages-microsoft-prod.deb &&\
+rm packages-microsoft-prod.deb
+RUN sudo apt-get update && \
+sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
+sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18
+RUN echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
+
+
+#RUN curl -sSL -O https://packages.microsoft.com/config/ubuntu/$(grep VERSION_ID /etc/os-release | cut -d '"' -f 2)/packages-microsoft-prod.deb && sudo dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb && sudo apt-get update && sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 && sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 && echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
 
 # 2) Now pyodbc can find libodbc.so.2
 RUN pip install --no-cache-dir pyodbc
