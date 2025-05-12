@@ -3,6 +3,8 @@ import pyodbc
 import threading
 import bcrypt
 import time
+import sys
+import select
 
 HOST = "0.0.0.0"
 #PORT = 23456
@@ -26,25 +28,29 @@ except Exception as e:
 
 
 def on_new_client(conn, addr):
-     with conn:
-        print(f"Connected by {addr}")
-        # Recive inital instuction (create user or login)
-        data = conn.recv(1024).decode().strip()
-        username_sent = conn.recv(1024).decode().strip()
-        if data == 'newaccount':
-            username = create_user(conn, addr, username_sent)
-        else:
-            username = login(conn, addr, useranme_sent)
-        print("FIGsaf")
-        # Add to clients list
-        with clients_lock:
-            clients[username] = (conn, addr)
-        # Recive messages and send to all clients
-        client_run(conn, addr, username)
-        # Cleanup on disconnect
-        with clients_lock:
-            del clients[username]
-        print(f"Removed client {username} ({addr}) from clients list.")
+    try:
+        with conn:
+            print(f"Connected by {addr}")
+            # Recive inital instuction (create user or login)
+            data = conn.recv(1024)
+            username_sent = conn.recv(1024).decode().strip()
+            print(f"Username = {username_sent}")
+            data = data.decode().strip()
+            if data == 'newaccount':
+                username = create_user(conn, addr, username_sent)
+            else:
+                username = login(conn, addr, username_sent)
+            # Add to clients list
+            with clients_lock:
+                clients[username] = (conn, addr)
+            # Recive messages and send to all clients
+            client_run(conn, addr, username)
+            # Cleanup on disconnect
+            with clients_lock:
+                del clients[username]
+            print(f"Removed client {username} ({addr}) from clients list.")
+    except Exception as e:
+        print(f"An error occured with client {addr}: {e}")
 
 def login(conn, addr, username_sent):
      while True:
@@ -57,21 +63,18 @@ def login(conn, addr, username_sent):
             cursor.execute(SQL_STATEMENT, username)
             row = cursor.fetchone()
             salt = row[0]
-            salt = salt.encode()
             conn.sendall(salt)
-            password_to_check = conn.recv(1042).decode().strip()
+            password_to_check = conn.recv(1042).strip()
             SQL_STATEMENT = "SELECT password_hashed FROM USERS WHERE Username = ?;"
             cursor.execute(SQL_STATEMENT, username)
             row = cursor.fetchone()
             hashed_password = row[0]
-            if password_to_check.encode() == hashed_password.encode():
+            if password_to_check == hashed_password:
                 conn.sendall(b'1')
                 return username
             else:
                 conn.sendall(b'0')
                 continue
-        if username_sent == "\0":
-            exit()
         else:
             conn.sendall(str(False).encode())
             continue
@@ -84,6 +87,7 @@ def create_user(conn, addr, username_sent):
             conn.sendall(b'0')
             password_hashed = conn.recv(1024).strip()
             salt = conn.recv(62).strip()
+            print(f"Username: {username_sent}, password hash: {password_hashed}, salt: {salt}")
             SQL_STATEMENT = "INSERT INTO USERS (username, password_hashed, salt) VALUES (?, ?, ?)"
             cursor.execute(SQL_STATEMENT, username_sent, password_hashed, salt)
             db.commit()
@@ -104,6 +108,7 @@ def client_run(conn, addr, username):
         message = data.decode().strip()
         cursor.execute("INSERT INTO MESSAGES (sender, reciver, message) VALUES (?, ?, ?)", username, "all", message)
         db.commit()
+        print(f"{username}: {message}")
         broadcast_message = f"{username}: {message}"
         for target_username, (target_conn, _) in clients.copy().items():
             if target_conn != conn:
@@ -125,10 +130,16 @@ def main():
             thread.start()
         except:
             s.close()
-        if input() == ":q":
-            cursor.close()
-            conn.close()
-            s.close()
-            exit()
+        # Check if there's input available
+        if select.select([sys.stdin], [], [], 0)[0]:
+            user_input = sys.stdin.readline().strip()
+            print(f"Received: {user_input}")
+            if user_input == ":q":
+                print("Exiting loop.")
+                break
+    cursor.close()
+    conn.close()
+    s.close()
+
 if __name__ == "__main__":   
     main()
