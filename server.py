@@ -7,6 +7,7 @@ import sys
 import select
 import json
 import struct
+import os
 
 
 HOST = "0.0.0.0"
@@ -17,8 +18,8 @@ clients_lock = threading.Lock()
 
 SERVER = 'tcp:quackmsg.database.windows.net,1433'
 DATABASE = 'messagedb'
-USERNAME = 'noah'
-PASSWORD = '9aie7Hgslc*9Wp'
+USERNAME = os.environ['SQL_USERNAME']
+PASSWORD = os.environ['SQL_PASSWORD']
 connectionString = f'DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}'
 
 try:
@@ -60,6 +61,9 @@ def on_new_client(conn, addr):
             print(f"Removed client {username} ({addr}) from clients list.")
     except Exception as e:
         print(f"An error occured with client {addr}: {e}")
+
+def send_past_messages(conn, addr, username):
+    SQL_STATEMENT = "SELECT *" 
 
 def login(conn, addr, username_sent):
      while True:
@@ -165,13 +169,6 @@ def main():
             thread.start()
         except:
             s.close()
-        # Check if there's input available
-        if select.select([sys.stdin], [], [], 0)[0]:
-            user_input = sys.stdin.readline().strip()
-            print(f"Received: {user_input}")
-            if user_input == ":q":
-                print("Exiting loop.")
-                break
     cursor.close()
     conn.close()
     s.close()
