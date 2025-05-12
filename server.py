@@ -63,7 +63,9 @@ def on_new_client(conn, addr):
         print(f"An error occured with client {addr}: {e}")
 
 def send_past_messages(conn, addr, username):
-    SQL_STATEMENT = "SELECT *" 
+    SQL_STATEMENT = "SELECT * FROM USERS WHERE username = ?"
+    cursor.execute(SQL_STATEMENT, username)
+
 
 def login(conn, addr, username_sent):
      while True:
@@ -78,7 +80,7 @@ def login(conn, addr, username_sent):
             salt = row[0]
             conn.sendall(salt)
             password_to_check = conn.recv(1042).strip()
-            SQL_STATEMENT = "SELECT password_hashed FROM USERS WHERE Username = ?;"
+            SQL_STATEMENT = "SELECT password_hashed FROM USERS WHERE username = ?;"
             cursor.execute(SQL_STATEMENT, username)
             row = cursor.fetchone()
             hashed_password = row[0]
