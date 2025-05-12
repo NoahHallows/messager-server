@@ -5,6 +5,9 @@ import bcrypt
 import time
 import sys
 import select
+import json
+import struct
+
 
 HOST = "0.0.0.0"
 #PORT = 23456
@@ -43,6 +46,12 @@ def on_new_client(conn, addr):
             # Add to clients list
             with clients_lock:
                 clients[username] = (conn, addr)
+            
+            payload = {"sender": "Server", "message": "Welcome to quackmessage"}
+            data = json.dumps(payload).encode("utf-8")
+            header = struct.pack("!I", len(data))
+            conn.sendall(header + data)
+            
             # Recive messages and send to all clients
             client_run(conn, addr, username)
             # Cleanup on disconnect
@@ -101,23 +110,49 @@ def create_user(conn, addr, username_sent):
 
 def client_run(conn, addr, username):
     while True:
-        data = conn.recv(1024)
-        if not data:
-            print(f"Client '{username}' at {addr} disconnected.")
+        result = recv_message(conn)
+        if result is None:
             break
-        message = data.decode().strip()
+        sender, message = result
+        if (sender != username):
+            print(f"Username, {username}, and sender, {sender} don't match.")
+            continue
+        payload = {"sender": username, "message": message}
+        broadcast_payload = json.dumps(payload).encode("utf-8")
+        # 3) prefix with 4-byte big-endian length
+        header = struct.pack("!I", len(broadcast_payload))
         cursor.execute("INSERT INTO MESSAGES (sender, reciver, message) VALUES (?, ?, ?)", username, "all", message)
         db.commit()
         print(f"{username}: {message}")
-        broadcast_message = f"{username}: {message}"
+        print(f"Payload: {broadcast_payload}")
         for target_username, (target_conn, _) in clients.copy().items():
             if target_conn != conn:
                 try:
-                    target_conn.sendall(broadcast_message.encode())
+                    target_conn.sendall(header + broadcast_payload)
+                    print(f"Sent message to: {target_username}")
                 except:
                     print(f"Failed to send message to {target_username}")
  
+def recv_message(conn):
+    # 1) read exactly 4 bytes for length
+    raw_len = conn.recv(4)
+    if not raw_len:
+        return None
+    msg_len = struct.unpack("!I", raw_len)[0]
 
+    # 2) read the JSON payload
+    data = b""
+    while len(data) < msg_len:
+        chunk = conn.recv(msg_len - len(data))
+        if not chunk:
+            raise ConnectionError("client disconnected")
+        data += chunk
+
+    # 3) parse JSON
+    payload = json.loads(data.decode("utf-8"))
+    sender  = payload["sender"]
+    message = payload["message"]
+    return sender, message
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
