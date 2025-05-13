@@ -31,6 +31,18 @@ except Exception as e:
     print(e)
 
 
+def send_past_messages(conn, addr, username):
+    try:
+        SQL_STATEMENT = "SELECT * FROM MESSAGES WHERE sender = ? OR reciver = ? OR reciver = 'all';"
+        cursor.execute(SQL_STATEMENT, (username, username))
+        rows = cursor.fetchall()
+        for row in rows:
+
+            print(row)
+    except Exception as e:
+        print(f"error sending past messages: {e}")
+
+
 def on_new_client(conn, addr):
     try:
         with conn:
@@ -53,6 +65,8 @@ def on_new_client(conn, addr):
             header = struct.pack("!I", len(data))
             conn.sendall(header + data)
             
+            send_past_messages(conn, addr, username)
+
             # Recive messages and send to all clients
             client_run(conn, addr, username)
             # Cleanup on disconnect
@@ -62,9 +76,6 @@ def on_new_client(conn, addr):
     except Exception as e:
         print(f"An error occured with client {addr}: {e}")
 
-def send_past_messages(conn, addr, username):
-    SQL_STATEMENT = "SELECT * FROM USERS WHERE username = ?"
-    cursor.execute(SQL_STATEMENT, username)
 
 
 def login(conn, addr, username_sent):
@@ -74,7 +85,7 @@ def login(conn, addr, username_sent):
         row = cursor.fetchone()
         if row:
             username = username_sent
-            SQL_STATEMENT = "SELECT password_hashed FROM USERS WHERE username = ?;"
+            SQL_STATEMENT = "SELECT salt FROM USERS WHERE username = ?;"
             cursor.execute(SQL_STATEMENT, username)
             row = cursor.fetchone()
             salt = row[0]
