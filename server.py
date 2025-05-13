@@ -16,7 +16,7 @@ PORT = 28752
 clients = {}
 clients_lock = threading.Lock()
 
-VERSION = 1.0
+VERSION = "1.0"
 
 SERVER = 'tcp:quackmsg.database.windows.net,1433'
 DATABASE = 'messagedb'
