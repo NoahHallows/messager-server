@@ -16,6 +16,8 @@ PORT = 28752
 clients = {}
 clients_lock = threading.Lock()
 
+VERSION = 1.0
+
 SERVER = 'tcp:quackmsg.database.windows.net,1433'
 DATABASE = 'messagedb'
 USERNAME = os.environ['SQL_USERNAME']
@@ -50,6 +52,7 @@ def on_new_client(conn, addr):
     try:
         with conn:
             print(f"Connected by {addr}")
+            conn.sendall(VERSION.encode())
             # Recive inital instuction (create user or login)
             data = conn.recv(1024)
             username_sent = conn.recv(1024).decode().strip()
