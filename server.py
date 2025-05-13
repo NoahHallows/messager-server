@@ -37,8 +37,11 @@ def send_past_messages(conn, addr, username):
         cursor.execute(SQL_STATEMENT, (username, username))
         rows = cursor.fetchall()
         for row in rows:
-
-            print(row)
+            id, sender, receiver, message, timestamp = row
+            payload = {'sender': sender, 'message':message}
+            data = json.dumps(payload).encode("utf-8")
+            header = struct.pack("!I", len(data))
+            conn.sendall(header + data)
     except Exception as e:
         print(f"error sending past messages: {e}")
 
