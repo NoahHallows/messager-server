@@ -33,7 +33,7 @@ except Exception as e:
 
 def send_past_messages(conn, addr, username):
     try:
-        SQL_STATEMENT = "SELECT * FROM MESSAGES WHERE sender = ? OR reciver = ? OR reciver = 'all';"
+        SQL_STATEMENT = "SELECT * FROM MESSAGES WHERE sender = ? OR receiver = ? OR receiver = 'all';"
         cursor.execute(SQL_STATEMENT, (username, username))
         rows = cursor.fetchall()
         for row in rows:
@@ -141,7 +141,7 @@ def client_run(conn, addr, username):
         broadcast_payload = json.dumps(payload).encode("utf-8")
         # 3) prefix with 4-byte big-endian length
         header = struct.pack("!I", len(broadcast_payload))
-        cursor.execute("INSERT INTO MESSAGES (sender, reciver, message) VALUES (?, ?, ?)", username, "all", message)
+        cursor.execute("INSERT INTO MESSAGES (sender, receiver, message) VALUES (?, ?, ?)", username, "all", message)
         db.commit()
         print(f"{username}: {message}")
         print(f"Payload: {broadcast_payload}")
