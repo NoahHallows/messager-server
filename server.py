@@ -16,7 +16,7 @@ PORT = 28752
 clients = {}
 clients_lock = threading.Lock()
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 SERVER = 'tcp:quackmsg.database.windows.net,1433'
 DATABASE = 'messagedb'
@@ -40,7 +40,7 @@ def send_past_messages(conn, addr, username):
         rows = cursor.fetchall()
         for row in rows:
             id, sender, receiver, message, timestamp = row
-            payload = {'sender': sender, 'message':message}
+            payload = {'sender': sender, 'receiver': receiver, 'message':message}
             data = json.dumps(payload).encode("utf-8")
             header = struct.pack("!I", len(data))
             conn.sendall(header + data)
@@ -66,14 +66,14 @@ def on_new_client(conn, addr):
             with clients_lock:
                 clients[username] = (conn, addr)
             
-            payload = {"sender": "Server", "message": "Welcome to quackmessage"}
+            payload = {"sender": "Server", "receiver": username, "message": "Welcome to quackmessage"}
             data = json.dumps(payload).encode("utf-8")
             header = struct.pack("!I", len(data))
             conn.sendall(header + data)
             
             send_past_messages(conn, addr, username)
 
-            # Recive messages and send to all clients
+            # Manage messages
             client_run(conn, addr, username)
             # Cleanup on disconnect
             with clients_lock:
@@ -136,25 +136,33 @@ def client_run(conn, addr, username):
         result = recv_message(conn)
         if result is None:
             break
-        sender, message = result
-        if (sender != username):
-            print(f"Username, {username}, and sender, {sender} don't match.")
-            continue
+        sender, message, receiver = result
+#        if (sender != username):
+#            print(f"Username, {username}, and sender, {sender} don't match.")
+#            continue
         payload = {"sender": username, "message": message}
         broadcast_payload = json.dumps(payload).encode("utf-8")
         # 3) prefix with 4-byte big-endian length
         header = struct.pack("!I", len(broadcast_payload))
-        cursor.execute("INSERT INTO MESSAGES (sender, receiver, message) VALUES (?, ?, ?)", username, "all", message)
+        cursor.execute("INSERT INTO MESSAGES (sender, receiver, message) VALUES (?, ?, ?)", username, receiver, message)
         db.commit()
         print(f"{username}: {message}")
         print(f"Payload: {broadcast_payload}")
-        for target_username, (target_conn, _) in clients.copy().items():
-            if target_conn != conn:
-                try:
-                    target_conn.sendall(header + broadcast_payload)
-                    print(f"Sent message to: {target_username}")
-                except:
-                    print(f"Failed to send message to {target_username}")
+        if receiver in clients.keys():
+            target_conn = clients[receiver][0]
+
+            try:
+                target_conn.sendall(header + broadcast_payload)
+            except:
+                print(f"Failed to send message to {receiver}")
+
+#        for target_username, (target_conn, _) in clients.copy().items():
+#            if target_conn != conn:
+#                try:
+#                    target_conn.sendall(header + broadcast_payload)
+#                    print(f"Sent message to: {target_username}")
+#                except:
+#                    print(f"Failed to send message to {target_username}")
  
 def recv_message(conn):
     # 1) read exactly 4 bytes for length
@@ -174,8 +182,9 @@ def recv_message(conn):
     # 3) parse JSON
     payload = json.loads(data.decode("utf-8"))
     sender  = payload["sender"]
+    receiver = payload["receiver"]
     message = payload["message"]
-    return sender, message
+    return sender, message, receiver
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
