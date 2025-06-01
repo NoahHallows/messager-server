@@ -1,5 +1,4 @@
 import socket
-import pyodbc
 import threading
 import bcrypt
 import time
@@ -8,7 +7,7 @@ import select
 import json
 import struct
 import os
-
+import psycopg2
 
 HOST = "0.0.0.0"
 #PORT = 23456
@@ -18,15 +17,11 @@ clients_lock = threading.Lock()
 
 VERSION = "1.1"
 
-SERVER = 'tcp:quackmsg.database.windows.net,1433'
-DATABASE = 'messagedb'
-USERNAME = os.environ['SQL_USERNAME']
-PASSWORD = os.environ['SQL_PASSWORD']
-connectionString = f'DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}'
 
 try:
-    db = pyodbc.connect(connectionString)
-    cursor = db.cursor()
+    # Connect to the School database
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
     print("Connection successful!")
 except Exception as e:
     print("Error connecting to SQL Server.")

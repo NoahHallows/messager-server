@@ -1,3 +1,2 @@
 bcrypt
-pyodbc
-azure-cli
+psycopg2
