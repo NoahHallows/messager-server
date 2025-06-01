@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+   db:
+        image: postgres:13
+        environment:
+             - POSTGRES_USER=msg_user
+             - POSTGRES_PASSWORD=aS82PZhVKZZjqc
+
+        networks:
+             - backend
+   msg_server:
+        image: noahhallows2/messageserver:main
+        environment:
+                     - DATABASE_URL=postgres://msg_user:aS82PZhVKZZjqc@db:5432/messagedb
+        networks:
+            - backend
+            - frontend
+        ports:
+          - "28752:28752"
+
+networks:
+    frontend:
+       driver: bridge
+
+    backend:
+     driver: bridge
+     ipam:
+         config:
+             - subnet: 172.16.238.0/24
