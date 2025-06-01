@@ -10,7 +10,7 @@ services:
         networks:
              - backend
    msg_server:
-        image: noahhallows2/messageserver:main
+        image: noahhallows2/messager-server:main
         environment:
                      - DATABASE_URL=postgres://msg_user:aS82PZhVKZZjqc@db:5432/messagedb
         networks:
